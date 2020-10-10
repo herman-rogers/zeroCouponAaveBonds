@@ -20,8 +20,8 @@ contract capitalHandler is IERC20 {
 
 	address public aToken;
 
-	mapping(address => int) public bondBalance;
-	
+	mapping(address => int) public balanceBonds;
+
 	mapping(address => uint) public balanceYield;
 
 //--------ERC 20 Storage---------------
@@ -49,7 +49,7 @@ contract capitalHandler is IERC20 {
 			balance = balanceYield[_owner]*maturityConversionRate/1e18;
 		else
 			balance = aw.WrappedTokenToAToken(balanceYield[_owner]);
-		int bondBal = bondBalance[_owner];
+		int bondBal = balanceBonds[_owner];
 		if (bondBal > 0)
 			balance = balance.add(uint(bondBal));
 		else
@@ -58,7 +58,7 @@ contract capitalHandler is IERC20 {
 
 	function wrappedTokenFree(address _owner) public view returns (uint wrappedTknFree) {
 		wrappedTknFree = balanceYield[_owner];
-		int bondBal = bondBalance[_owner];
+		int bondBal = balanceBonds[_owner];
 		if (bondBal < 0){
 			if (inPayoutPhase){
 				uint toSub = uint(-bondBal).mul(1e18);
@@ -94,10 +94,10 @@ contract capitalHandler is IERC20 {
 	}
 
 	function claimBondPayout(address _to) public {
-		int bondBal = bondBalance[msg.sender];
+		int bondBal = balanceBonds[msg.sender];
 		require(block.timestamp >= maturity && bondBal > 0);
 		aw.withdrawWrappedToken(_to, uint(bondBal)*1e18/maturityConversionRate);
-		bondBalance[msg.sender] = 0;
+		balanceBonds[msg.sender] = 0;
 	}
 
 	function enterPayoutPhase() public {
@@ -110,7 +110,7 @@ contract capitalHandler is IERC20 {
 
 
 	function balanceOf(address _owner) public view override returns (uint balance) {
-		int bondBal = bondBalance[_owner];
+		int bondBal = balanceBonds[_owner];
 		return uint(bondBal > 0 ? bondBal : 0);
 	}
 
@@ -118,8 +118,8 @@ contract capitalHandler is IERC20 {
     function transfer(address _to, uint256 _value) public override returns (bool success) {
         require(_value <= minimumATokensAtMaturity(msg.sender));
 
-        bondBalance[msg.sender] -= int(_value);
-        bondBalance[_to] += int(_value);
+        balanceBonds[msg.sender] -= int(_value);
+        balanceBonds[_to] += int(_value);
 
         emit Transfer(msg.sender, _to, _value);
 
@@ -138,8 +138,8 @@ contract capitalHandler is IERC20 {
         require(_value <= allowance[_from][msg.sender]);
     	require(_value <= minimumATokensAtMaturity(_from));
 
-    	bondBalance[_from] -= int(_value);
-    	bondBalance[_to] += int(_value);
+    	balanceBonds[_from] -= int(_value);
+    	balanceBonds[_to] += int(_value);
 
         allowance[_from][msg.sender] -= _value;
 

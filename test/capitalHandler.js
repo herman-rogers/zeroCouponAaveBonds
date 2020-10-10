@@ -36,8 +36,8 @@ contract('capitalHandler', async function(accounts){
 			assert.equal(caught, true, "cannot send more bonds than one has collateral for");
 		});
 		await capitalHandlerInstance.transfer(accounts[1], amount);
-		assert.equal((await capitalHandlerInstance.bondBalance(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
-		assert.equal((await capitalHandlerInstance.bondBalance(accounts[1])).toString(), amount, "correct bond balance for account 1");
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[1])).toString(), amount, "correct bond balance for account 1");
 		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0])).toString(), '0', "correct val returned by minimumATokensAtMaturity()");
 		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[1])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
 		assert.equal((await capitalHandlerInstance.wrappedTokenFree(accounts[0])).toString(), '0', 'correct val returned by wrappedTokenFree()');
@@ -48,7 +48,7 @@ contract('capitalHandler', async function(accounts){
 		//increase value of wrapped token by 2x
 		inflation = inflation.mul(new BN(2));
 		await dummyATokenInstance.setInflation(inflation.toString());
-		assert.equal((await capitalHandlerInstance.bondBalance(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
 		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
 		assert.equal((await capitalHandlerInstance.wrappedTokenFree(accounts[0])).toString(), (parseInt(amount)/2)+"", 'correct val returned by wrappedTokenFree()');
 	});
@@ -99,10 +99,10 @@ contract('capitalHandler', async function(accounts){
 	});
 
 	it('bond holders capture yield generated after maturity', async () => {
-		bondBalAct1 = await capitalHandlerInstance.bondBalance(accounts[1]);
+		bondBalAct1 = await capitalHandlerInstance.balanceBonds(accounts[1]);
 		expectedPayout = bondBalAct1.mul(postMaturityInflation).div(inflation);
 		await capitalHandlerInstance.claimBondPayout(accounts[2], {from: accounts[1]});
-		assert.equal((await capitalHandlerInstance.bondBalance(accounts[1])).toString(), '0', "balance long bond decrease to 0");
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[1])).toString(), '0', "balance long bond decrease to 0");
 		assert.equal((await dummyATokenInstance.balanceOf(accounts[2])).toString(), expectedPayout.toString(), "correct payout of long bond tokens");
 	});
 
