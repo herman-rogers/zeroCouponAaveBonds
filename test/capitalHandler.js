@@ -38,8 +38,8 @@ contract('capitalHandler', async function(accounts){
 		await capitalHandlerInstance.transfer(accounts[1], amount);
 		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
 		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[1])).toString(), amount, "correct bond balance for account 1");
-		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0])).toString(), '0', "correct val returned by minimumATokensAtMaturity()");
-		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[1])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[0])).toString(), '0', "correct val returned by minimumATokensAtMaturity()");
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[1])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
 		assert.equal((await capitalHandlerInstance.wrappedTokenFree(accounts[0])).toString(), '0', 'correct val returned by wrappedTokenFree()');
 		assert.equal((await capitalHandlerInstance.wrappedTokenFree(accounts[1])).toString(), '0', 'correct val returned by wrappedTokenFree()');
 	});
@@ -49,7 +49,7 @@ contract('capitalHandler', async function(accounts){
 		inflation = inflation.mul(new BN(2));
 		await dummyATokenInstance.setInflation(inflation.toString());
 		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[0])).toString(), '-'+amount, "correct bond balance for account 0");
-		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[0])).toString(), amount, "correct val returned by minimumATokensAtMaturity()");
 		assert.equal((await capitalHandlerInstance.wrappedTokenFree(accounts[0])).toString(), (parseInt(amount)/2)+"", 'correct val returned by wrappedTokenFree()');
 	});
 
@@ -91,10 +91,10 @@ contract('capitalHandler', async function(accounts){
 	});
 
 	it('does not reward bond sellers with yield after payout', async () => {
-		minATknAtMaturity = await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0]);
+		minATknAtMaturity = await capitalHandlerInstance.balanceOf(accounts[0]);
 		postMaturityInflation = inflation.mul(new BN(2));
 		await dummyATokenInstance.setInflation(postMaturityInflation.toString());
-		assert.equal((await capitalHandlerInstance.minimumATokensAtMaturity(accounts[0])).toString(), minATknAtMaturity,
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[0])).toString(), minATknAtMaturity,
 			"yield holders not rewarded by yield generated on lent out funds after maturity");
 	});
 

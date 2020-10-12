@@ -44,18 +44,6 @@ contract capitalHandler is IERC20 {
 		maturity = _maturity;
 	}
 
-	function minimumATokensAtMaturity(address _owner) public view returns (uint balance) {
-		if (inPayoutPhase)
-			balance = balanceYield[_owner]*maturityConversionRate/1e18;
-		else
-			balance = aw.WrappedTokenToAToken(balanceYield[_owner]);
-		int bondBal = balanceBonds[_owner];
-		if (bondBal > 0)
-			balance = balance.add(uint(bondBal));
-		else
-			balance = balance.sub(uint(-bondBal));
-	}
-
 	function wrappedTokenFree(address _owner) public view returns (uint wrappedTknFree) {
 		wrappedTknFree = balanceYield[_owner];
 		int bondBal = balanceBonds[_owner];
@@ -106,14 +94,24 @@ contract capitalHandler is IERC20 {
 		maturityConversionRate = aw.WrappedTokenToAToken(1e18);
 	}
 
+	function minimumATokensAtMaturity(address _owner) internal view returns (uint balance) {
+		if (inPayoutPhase)
+			balance = balanceYield[_owner]*maturityConversionRate/1e18;
+		else
+			balance = aw.WrappedTokenToAToken(balanceYield[_owner]);
+		int bondBal = balanceBonds[_owner];
+		if (bondBal > 0)
+			balance = balance.add(uint(bondBal));
+		else
+			balance = balance.sub(uint(-bondBal));
+	}
+
 //-------------ERC20 Implementation----------------
 
 
 	function balanceOf(address _owner) public view override returns (uint balance) {
-		int bondBal = balanceBonds[_owner];
-		return uint(bondBal > 0 ? bondBal : 0);
+		balance = minimumATokensAtMaturity(_owner);
 	}
-
 
     function transfer(address _to, uint256 _value) public override returns (bool success) {
         require(_value <= minimumATokensAtMaturity(msg.sender));
