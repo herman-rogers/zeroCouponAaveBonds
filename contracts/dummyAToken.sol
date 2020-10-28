@@ -25,7 +25,7 @@ contract dummyAToken is IERC20 {
     }
 
     function mintTo(address _to, uint _amount) public {
-        balanceOfInternal[_to] += 1e18*_amount/inflation;
+        balanceOfInternal[_to] = _amount;
     }
 
     function setInflation(uint _inflation) public {

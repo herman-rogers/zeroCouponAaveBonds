@@ -10,8 +10,6 @@ contract ERC20 is IERC20 {
 	mapping(address => uint) public override balanceOf;
     mapping(address => mapping(address => uint256)) public override allowance;
 
-    address varianceSwapHandlerAddress;
-
     string public override name = "Token";
     string public override symbol = "TKN";
 

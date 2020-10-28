@@ -1,6 +1,8 @@
 const dummyAToken = artifacts.require('dummyAToken');
 const aaveWrapper = artifacts.require('aaveWrapper');
 const capitalHandler = artifacts.require('capitalHandler');
+const yieldTokenDeployer = artifacts.require('yieldTokenDeployer');
+const IERC20 = artifacts.require("IERC20");
 
 const helper = require("../helper/helper.js");
 
@@ -12,9 +14,11 @@ contract('capitalHandler', async function(accounts){
 	it('before each', async () => {
 		dummyATokenInstance = await dummyAToken.new();
 		aaveWrapperInstance = await aaveWrapper.new(dummyATokenInstance.address);
+		yieldTokenDeployerInstance = await yieldTokenDeployer.new();
 		timeNow = (await web3.eth.getBlock('latest')).timestamp;
-		capitalHandlerInstance = await capitalHandler.new(aaveWrapperInstance.address, timeNow+86400);
+		capitalHandlerInstance = await capitalHandler.new(aaveWrapperInstance.address, timeNow+86400, yieldTokenDeployerInstance.address);
 		inflation = await dummyATokenInstance.inflation();
+		yieldTokenInstance = await IERC20.at(await capitalHandlerInstance.yieldTokenAddress());
 		//wrap aTokens
 		amount = '100000';
 		await dummyATokenInstance.approve(aaveWrapperInstance.address, amount);
@@ -68,6 +72,33 @@ contract('capitalHandler', async function(accounts){
 		expectedAToken = inflation.mul(new BN(toWithdraw)).div(_10To18);
 		assert.equal((await dummyATokenInstance.balanceOf(accounts[1])).toString(), expectedAToken, "corect balance wrapped token for account 1");
 		assert.equal((await capitalHandlerInstance.balanceYield(accounts[0])).toString(), prevBalanceYield.sub(new BN(toWithdraw)).toString(), "correct balance yield for account 0");		
+	});
+
+	it('transfers yield', async () => {
+		toTransferYield = (parseInt(amount)/8)+"";
+		toTransferATkn = inflation.mul(new BN(toTransferYield)).div(_10To18).toString();
+		prevBalanceBond = await capitalHandlerInstance.balanceBonds(accounts[0]);
+		prevBalanceYield = await capitalHandlerInstance.balanceYield(accounts[0]);
+		prevBalanceOf = await capitalHandlerInstance.balanceOf(accounts[0]);
+		await yieldTokenInstance.transfer(accounts[2], toTransferYield);
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[0])).sub(prevBalanceBond).toString(), toTransferATkn, "correct balance bonds account 0");
+		assert.equal(prevBalanceYield.sub(await capitalHandlerInstance.balanceYield(accounts[0])).toString(), toTransferYield, "correct balance yield account 0")
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[0])).toString(), prevBalanceOf.toString(), "correct minimum aTkn balance at maturity account 0");
+		assert.equal((await capitalHandlerInstance.balanceBonds(accounts[2])).toString(), "-"+toTransferATkn, "correct balance bonds account 2");
+		assert.equal((await capitalHandlerInstance.balanceYield(accounts[2])).toString(), toTransferYield, "correct balance yield account 2");
+		assert.equal((await capitalHandlerInstance.balanceOf(accounts[2])).toString(), "0", "correct minimum aTkn balance at maturity account 2");
+	});
+
+	it('cannot transfer too much yield', async () => {
+		maxTransfer = await capitalHandlerInstance.wrappedTokenFree(accounts[0]);
+		caught = false;
+		await yieldTokenInstance.transfer(accounts[1], maxTransfer.add(new BN("1")).toString()).catch(() => {
+			caught = true;
+		}).then(() => {
+			assert.equal(caught, true, "cannot transfer more yield than the max amount of wrapped token free");
+		});
+		//transfer max amount
+		await yieldTokenInstance.transfer(accounts[1], maxTransfer.toString());
 	});
 
 	it('enters payout phase', async () => {

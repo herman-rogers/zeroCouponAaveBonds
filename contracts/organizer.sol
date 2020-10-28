@@ -11,6 +11,12 @@ contract organizer {
 	//aToken => maturity of bond => capitalHandler
 	mapping(address => mapping(uint64 => address)) public capitalHandlerMapping;
 
+	address public yieldTokenDeployerAddress;
+
+	constructor (address _yieldTokenDeployerAddress) public {
+		yieldTokenDeployerAddress = _yieldTokenDeployerAddress;	
+	}
+
 	function capitalHandlerInstancesLength() public view returns(uint) {
 		return capitalHandlerInstances.length;
 	}
@@ -29,7 +35,7 @@ contract organizer {
 		require(capitalHandlerMapping[_aTokenAddress][_maturity] == address(0), "capital handler with these parameters already exists");
 		address aaveWrapperAddress = aTokenWrappers[_aTokenAddress];
 		require(aaveWrapperAddress != address(0), "deploy a wrapper for this aToken first");
-		address capitalHandlerAddress = address(new capitalHandler(aaveWrapperAddress, _maturity));
+		address capitalHandlerAddress = address(new capitalHandler(aaveWrapperAddress, _maturity, yieldTokenDeployerAddress));
 		capitalHandlerInstances.push(capitalHandlerAddress);
 		capitalHandlerMapping[_aTokenAddress][_maturity] = capitalHandlerAddress;
 	}

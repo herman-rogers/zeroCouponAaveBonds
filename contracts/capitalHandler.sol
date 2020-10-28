@@ -2,6 +2,7 @@ pragma solidity >=0.6.5 <0.7.0;
 import "./interfaces/IERC20.sol";
 import "./ERC20.sol";
 import "./aaveWrapper.sol";
+import "./yieldTokenDeployer.sol";
 import "./libraries/SafeMath.sol";
 import "./libraries/SignedSafeMath.sol";
 
@@ -24,6 +25,8 @@ contract capitalHandler is IERC20 {
 
 	mapping(address => uint) public balanceYield;
 
+	address public yieldTokenAddress;
+
 //--------ERC 20 Storage---------------
 
 	uint8 public override decimals;
@@ -33,7 +36,7 @@ contract capitalHandler is IERC20 {
 
 //--------------functionality----------
 
-	constructor(address _aw, uint64 _maturity) public {
+	constructor(address _aw, uint64 _maturity, address _yieldTokenDeployer) public {
 		aaveWrapper temp = aaveWrapper(_aw);
 		aw = temp;
 		decimals = temp.decimals();
@@ -42,6 +45,9 @@ contract capitalHandler is IERC20 {
 		name = string(abi.encodePacked(temp2.name(),' zero coupon bond'));
 		symbol = string(abi.encodePacked(temp2.symbol(), 'zcb'));
 		maturity = _maturity;
+		(bool success , ) = _yieldTokenDeployer.call(abi.encodeWithSignature("deploy(address)", _aw));
+		require(success);
+		yieldTokenAddress = yieldTokenDeployer(_yieldTokenDeployer).addr();
 	}
 
 	function wrappedTokenFree(address _owner) public view returns (uint wrappedTknFree) {
@@ -106,6 +112,27 @@ contract capitalHandler is IERC20 {
 			balance = balance.sub(uint(-bondBal));
 	}
 
+	/*
+	function convertToWrapped(uint _amountATkn) internal view returns (uint _amountWrappedTkn) {
+		if (inPayoutPhase){
+			_amountWrappedTkn = _amountATkn.mul(1e18);
+			_amountWrappedTkn = _amountWrappedTkn/maturityConversionRate + (_amountWrappedTkn%maturityConversionRate  == 0 ? 0 : 1);
+		}
+		else
+			wrappedTknFree = aw.ATokenToWrappedToken(_amountATkn);
+	}
+
+	function convertToATkn(uint _amountWrappedTkn) internal view returns (uint _amountATkn) {
+		if (inPayoutPhase){
+			_amountATkn = _amountWrappedTkn.mul(maturityConversionRate);
+			_amountATkn = _amountATkn/1e18 + (_amountATkn%1e18  == 0 ? 0 : 1);
+		}
+		else
+			_amountATkn = aw.WrappedTokenToAToken(_amountWrappedTkn);
+
+	}
+	*/
+
 //-------------ERC20 Implementation----------------
 
 
@@ -149,4 +176,18 @@ contract capitalHandler is IERC20 {
     function totalSupply() public view override returns (uint _supply) {
     	_supply = aw.WrappedTokenToAToken(aw.balanceOf(address(this)));
     }
+
+//---------Yield Token--------------------
+
+	function transferYield(address _from, address _to, uint _amount) public {
+		require(msg.sender == yieldTokenAddress);
+		require(wrappedTokenFree(_from) >= _amount);
+		uint _amountATkn = inPayoutPhase ? _amount.mul(maturityConversionRate)/1e18 : aw.WrappedTokenToAToken(_amount);
+		balanceYield[_from] -= _amount;
+		balanceYield[_to] += _amount;
+		balanceBonds[_from] += int(_amountATkn);
+		balanceBonds[_to] -= int(_amountATkn);
+	}
+
+
 }
